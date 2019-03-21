@@ -20,6 +20,7 @@ from operator import itemgetter
 
 from config import *
 
+
 def get_class_name():
     return 'IntrepidIbex'
 
@@ -59,9 +60,11 @@ class IntrepidIbex():
             sheep_position = self.get_player_position(CELL_SHEEP_2, field)
             wolf_position = self.get_player_position(CELL_WOLF_1, field)
 
-        if (abs(sheep_position[0] - wolf_position[0]) <= 2 and abs(sheep_position[1] - wolf_position[1]) <= 2):
-            # print('wolf is close')
+        if self.get_distance_heuristic(sheep_position, wolf_position) <= 3:
             return True
+        # if (abs(sheep_position[0] - wolf_position[0]) <= 2 and abs(sheep_position[1] - wolf_position[1]) <= 2):
+        #     # print('wolf is close')
+        #     return True
         return False
 
     def run_from_wolf(self, player_number, field):
@@ -75,17 +78,9 @@ class IntrepidIbex():
             sheep = CELL_SHEEP_2
 
         distance_x = sheep_position[1] - wolf_position[1]
-        abs_distance_x = abs(sheep_position[1] - wolf_position[1])
         distance_y = sheep_position[0] - wolf_position[0]
-        abs_distance_y = abs(sheep_position[0] - wolf_position[0])
 
-        # TODO maybe distance bigger than 1 to flee earlier
-        # print('player_number %i' %player_number)
-        # print('running from wolf')
-        # if the wolf is close vertically
-        if abs_distance_y == 1 and distance_x == 0:
-            # print('wolf is close vertically')
-            # if it's above the sheep, move down if possible
+        if abs(distance_y) >= abs(distance_x):  # prioritize running in y-direction
             if distance_y > 0:
                 if self.valid_move(sheep, sheep_position[0] + 1, sheep_position[1], field):
                     return MOVE_DOWN
@@ -93,63 +88,26 @@ class IntrepidIbex():
                 if self.valid_move(sheep, sheep_position[0] - 1, sheep_position[1], field):
                     return MOVE_UP
             # if this is not possible, flee to the right or left
-            if self.valid_move(sheep, sheep_position[0], sheep_position[1] + 1, field):
-                return MOVE_RIGHT
-            elif self.valid_move(sheep, sheep_position[0], sheep_position[1] - 1, field):
+            if self.valid_move(sheep, sheep_position[0], sheep_position[1] - 1, field):
                 return MOVE_LEFT
+            elif self.valid_move(sheep, sheep_position[0], sheep_position[1] + 1, field):
+                return MOVE_RIGHT
             else:  # nowhere to go
                 return MOVE_NONE
-
-        # else if the wolf is close horizontally
-        elif abs_distance_x == 1 and distance_y == 0:
-            # print('wolf is close horizontally')
-            # if it's to the left, move to the right if possible
-            if distance_x > 0:
-                if self.valid_move(sheep, sheep_position[0], sheep_position[1] - 1, field):
+        else:  # prioritize running in x-direction
+            if distance_x > 0: # it's right of the sheep, move left if possible
+                if self.valid_move(sheep, sheep_position[0], sheep_position[1]+1, field):
+                    return MOVE_LEFT
+            else:  # it's left of the sheep, move right if possible
+                if self.valid_move(sheep, sheep_position[0], sheep_position[1]-1, field):
                     return MOVE_RIGHT
-            else:  # it's to the right, move left if possible
-                if self.valid_move(sheep, sheep_position[0], sheep_position[1] + 1, field):
-                    return MOVE_RIGHT
-            # if this is not possible, flee up or down
-            if self.valid_move(sheep, sheep_position[0] - 1, sheep_position[1], field):
-                return MOVE_UP
-            elif self.valid_move(sheep, sheep_position[0] + 1, sheep_position[1], field):
+                    # if this is not possible, flee up or down
+            if self.valid_move(sheep, sheep_position[0]+1, sheep_position[1], field):
                 return MOVE_DOWN
+            elif self.valid_move(sheep, sheep_position[0]-1, sheep_position[1], field):
+                return MOVE_UP
             else:  # nowhere to go
                 return MOVE_NONE
-
-        elif abs_distance_x == 1 and abs_distance_y == 1:
-            # print('wolf is in my surroundings')
-            # wolf is left and up
-            if distance_x > 0 and distance_y > 0:
-                # move right or down
-                if self.valid_move(sheep, sheep_position[0], sheep_position[1] + 1, field):
-                    return MOVE_RIGHT
-                else:
-                    return MOVE_DOWN
-            # wolf is left and down
-            if distance_x > 0 and distance_y < 0:
-                # move right or up
-                if self.valid_move(sheep, sheep_position[0], sheep_position[1] + 1, field):
-                    return MOVE_RIGHT
-                else:
-                    return MOVE_UP
-            # wolf is right and up
-            if distance_x < 0 and distance_y > 0:
-                # move left or down
-                if self.valid_move(sheep, sheep_position[0], sheep_position[1] - 1, field):
-                    return MOVE_LEFT
-                else:
-                    return MOVE_DOWN
-            # wolf is right and down
-            if distance_x < 0 and distance_y < 0:
-                # move left and up
-                if self.valid_move(sheep, sheep_position[0], sheep_position[1] - 1, field):
-                    return MOVE_LEFT
-                else:
-                    return MOVE_UP
-        else:  # this method was wrongly called
-            return MOVE_NONE
 
     def food_present(self, field):
         food_present = False
@@ -180,7 +138,6 @@ class IntrepidIbex():
                 break
             i += 1
         return self.determine_move_direction(reverse_path[-2], field, figure)
-
 
     def get_possible_sheep_goals(self, player_number, field):
         # contains y_pos, x_pos, heuristic
