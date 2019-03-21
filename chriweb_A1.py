@@ -211,69 +211,142 @@ class IntrepidIbex():
         return MOVE_NONE
 
     def determine_wolf_action(self, closest_goal, field, figure):
-        figure_position = self.get_player_position(figure, field)
+        reverse_path, f_score = self.a_star_wiki(closest_goal, figure, field)
+        return self.determine_move_direction(reverse_path[-2], field, figure)
 
-        distance_x = figure_position[1] - closest_goal[1]
-        distance_y = figure_position[0] - closest_goal[0]
 
-        if distance_x == 0:
-            # print('item right above/below me')
-            if distance_y > 0:
-                if self.valid_move(figure, figure_position[0] - 1, figure_position[1], field):
-                    return MOVE_UP
-                else:
-                    return MOVE_RIGHT
-            else:
-                if self.valid_move(figure, figure_position[0] + 1, figure_position[1], field):
-                    return MOVE_DOWN
-                else:
-                    return MOVE_RIGHT
-        elif distance_y == 0:
-            # print('item right beside me')
-            if distance_x > 0:
-                if self.valid_move(figure, figure_position[0], figure_position[1] - 1, field):
 
-                    return MOVE_LEFT
-                else:
-                    return MOVE_UP
-            else:
-                if self.valid_move(figure, figure_position[0], figure_position[1] + 1, field):
-                    return MOVE_RIGHT
-                else:
-                    return MOVE_UP
 
-        else:
-            # go left or up
-            if distance_x > 0 and distance_y > 0:
-                if self.valid_move(figure, figure_position[0], figure_position[1] - 1, field):
-                    return MOVE_LEFT
-                else:
-                    return MOVE_UP
 
-            # go left or down
-            elif distance_x > 0 and distance_y < 0:
-                if self.valid_move(figure, figure_position[0], figure_position[1] - 1, field):
-                    return MOVE_LEFT
-                else:
-                    return MOVE_DOWN
 
-            # go right or up
-            elif distance_x < 0 and distance_y > 0:
-                if self.valid_move(figure, figure_position[0], figure_position[1] + 1, field):
-                    return MOVE_RIGHT
-                else:
-                    return MOVE_UP
 
-            # go right or down
-            elif distance_x < 0 and distance_y < 0:
-                if self.valid_move(figure, figure_position[0], figure_position[1] + 1, field):
-                    return MOVE_RIGHT
-                else:
-                    return MOVE_DOWN
 
-            else:
-                print('fail')
-                return MOVE_NONE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     # neutral defs
     def a_star_wiki(self, goal, figure, field, cost_function=lambda x, y: 1):
