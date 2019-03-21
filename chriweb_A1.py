@@ -20,7 +20,6 @@ from operator import itemgetter
 
 from config import *
 
-
 def get_class_name():
     return 'IntrepidIbex'
 
@@ -173,8 +172,15 @@ class IntrepidIbex():
         possible_goals = self.get_possible_sheep_goals(player_number, field)
         best_heuristic_goal = possible_goals[0]
 
-        reverse_path, f_score = self.a_star_wiki((best_heuristic_goal[0], best_heuristic_goal[1]), figure, field)
+        # reverse_path, f_score = self.a_star_wiki((best_heuristic_goal[0], best_heuristic_goal[1]), figure, field)
+        i = 1
+        for goal in possible_goals:
+            reverse_path, f_score = self.a_star_wiki((goal[0], goal[1]), figure, field)
+            if not possible_goals[i] or f_score <= possible_goals[i][2]:
+                break
+            i += 1
         return self.determine_move_direction(reverse_path[-2], field, figure)
+
 
     def get_possible_sheep_goals(self, player_number, field):
         # contains y_pos, x_pos, heuristic
@@ -213,140 +219,6 @@ class IntrepidIbex():
     def determine_wolf_action(self, closest_goal, field, figure):
         reverse_path, f_score = self.a_star_wiki(closest_goal, figure, field)
         return self.determine_move_direction(reverse_path[-2], field, figure)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     # neutral defs
     def a_star_wiki(self, goal, figure, field, cost_function=lambda x, y: 1):
