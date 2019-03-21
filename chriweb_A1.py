@@ -423,8 +423,8 @@ class IntrepidIbex():
             valid_moves.append((position[0] + 1, position[1]))
         if self.valid_move(figure, position[0], position[1] + 1, field):
             valid_moves.append((position[0], position[1] + 1))
-        if self.valid_move(figure, position[0], position[1] + 1, field):
-            valid_moves.append((position[0], position[1] + 1))
+        if self.valid_move(figure, position[0], position[1] - 1, field):
+            valid_moves.append((position[0], position[1] - 1))
         return valid_moves
 
     def a_star_wiki(self, goal, figure, field, cost_function=lambda x, y: 1):
@@ -452,7 +452,8 @@ class IntrepidIbex():
             open_set.remove(current_position)
             closed_set.add(current_position)
 
-            for neighbor in self.get_valid_moves(figure, current_position, field):
+            neighbors = self.get_valid_moves(figure, current_position, field)
+            for neighbor in neighbors:
                 if neighbor in closed_set:
                     continue
 
@@ -467,8 +468,6 @@ class IntrepidIbex():
                 g_score[neighbor] = tentative_g_score
                 f_score[neighbor] = g_score[neighbor] + self.get_distance_heuristic(neighbor, goal)
 
-
-        print('should not be here') # TODO error here!
     # def a_star_wiki(self, start, goal, field, cost_function=lambda x, y: 1):
     #     closed_set = set()
     #     open_set = {start}
