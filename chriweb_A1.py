@@ -141,7 +141,7 @@ class IntrepidIbex():
                 elif item == enemy_sheep_label:
                     weighted_field[y_position][x_position] += 7
                 elif item == enemy_wolf_label:
-                    weighted_field[y_position][x_position] += -15
+                    weighted_field[y_position][x_position] += -10
                 elif item == friendly_wolf_label:
                     weighted_field[y_position][x_position] += 1
                 elif item == CELL_FENCE:
