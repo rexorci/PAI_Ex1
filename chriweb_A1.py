@@ -78,8 +78,20 @@ class IntrepidIbex():
 
         # go to tile which is accessible and has longest path to wolf
         valid_sheep_moves = self.get_valid_moves(figure, sheep_position, field)
-        farthest_away = max(valid_sheep_moves, key=lambda x: self.get_distance_heuristic(x, wolf_position))
-        return self.determine_move_direction(farthest_away, field, figure)
+
+        move_heuristics = []
+        for move in valid_sheep_moves:
+            move_heuristics.append((move, self.get_distance_heuristic(move, wolf_position)))
+        max_heuristic = max(move_heuristics, key=itemgetter(1))
+        # if multiple flee options are equally far away, take the one closer to food in this direction
+        if self.food_present(field) and len(max_heuristic) > 1:
+            best_options = [x for x in move_heuristics if x[1] == max_heuristic[1]]
+            best_goal = min(self.get_possible_sheep_goals(player_number, field),
+                            key=lambda x: self.weighted_sort(x[2], x[3]))
+            target_coord = min(best_options, key=lambda x: self.get_distance_heuristic(x[0], (best_goal[0], best_goal[1])))
+        else:
+            target_coord = max(valid_sheep_moves, key=lambda x: self.get_distance_heuristic(x, wolf_position))
+        return self.determine_move_direction(target_coord[0], field, figure)
 
     def food_present(self, field):
         food_present = False
@@ -91,6 +103,10 @@ class IntrepidIbex():
                     break
         return food_present
 
+    @staticmethod
+    def weighted_sort(distance, worth):
+        return distance * 2 / worth
+
     def gather_move_sheep(self, field, figure, player_number):
         """
         1. get all targets
@@ -99,17 +115,14 @@ class IntrepidIbex():
         4. repeat on all where real distance is bigger than heuristic
         """
 
-        def weighted_sort(distance, worth):
-            # TODO implement weight
-            return distance * 2 / worth
-
         possible_goals = sorted(self.get_possible_sheep_goals(player_number, field),
-                                key=lambda x: weighted_sort(x[2], x[3]))
+                                key=lambda x: self.weighted_sort(x[2], x[3]))
 
         i = 0
         for goal in possible_goals:
             reverse_path, true_distance = self.a_star_pathfinding((goal[0], goal[1]), figure, field)
-            if len(possible_goals) == i+1 or weighted_sort(true_distance, goal[3]) <= weighted_sort(possible_goals[i + 1][2], possible_goals[i + 1][3]):
+            if len(possible_goals) == i + 1 or self.weighted_sort(true_distance, goal[3]) <= self.weighted_sort(
+                    possible_goals[i + 1][2], possible_goals[i + 1][3]):
                 break
             i += 1
         return self.determine_move_direction(reverse_path[-2], field, figure)
