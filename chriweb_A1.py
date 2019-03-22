@@ -213,7 +213,6 @@ class IntrepidIbex():
 
     # defs for wolf
     def move_wolf(self, player_number, field):
-        return MOVE_NONE
         if player_number == 1:
             sheep_position = self.get_player_position(CELL_SHEEP_2, field)
             return self.determine_wolf_action(sheep_position, field, CELL_WOLF_1)
