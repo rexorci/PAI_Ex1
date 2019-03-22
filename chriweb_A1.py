@@ -15,6 +15,7 @@ The results and rankings of the agents will be published on OLAT using your 'nam
 so they are anonymous (and your 'name' is expected to be funny, no pressure).
 
 """
+import math
 from collections import defaultdict
 from operator import itemgetter
 
@@ -45,7 +46,7 @@ class IntrepidIbex():
 
         if self.wolf_close(player_number, field):
             # print('wolf close move')
-            return self.run_from_wolf(player_number, field)
+            return self.run_from_wolf(player_number, field, figure)
         elif self.food_present(field):
             # print('gather food move')
             return self.gather_move_sheep(field, figure, player_number)
@@ -67,47 +68,18 @@ class IntrepidIbex():
         #     return True
         return False
 
-    def run_from_wolf(self, player_number, field):
+    def run_from_wolf(self, player_number, field, figure):
         if player_number == 1:
             sheep_position = self.get_player_position(CELL_SHEEP_1, field)
             wolf_position = self.get_player_position(CELL_WOLF_2, field)
-            sheep = CELL_SHEEP_1
         else:
             sheep_position = self.get_player_position(CELL_SHEEP_2, field)
             wolf_position = self.get_player_position(CELL_WOLF_1, field)
-            sheep = CELL_SHEEP_2
 
-        distance_x = sheep_position[1] - wolf_position[1]
-        distance_y = sheep_position[0] - wolf_position[0]
-
-        if abs(distance_y) >= abs(distance_x):  # prioritize running in y-direction
-            if distance_y > 0:
-                if self.valid_move(sheep, sheep_position[0] + 1, sheep_position[1], field):
-                    return MOVE_DOWN
-            else:  # it's below the sheep, move up if possible
-                if self.valid_move(sheep, sheep_position[0] - 1, sheep_position[1], field):
-                    return MOVE_UP
-            # if this is not possible, flee to the right or left
-            if self.valid_move(sheep, sheep_position[0], sheep_position[1] - 1, field):
-                return MOVE_LEFT
-            elif self.valid_move(sheep, sheep_position[0], sheep_position[1] + 1, field):
-                return MOVE_RIGHT
-            else:  # nowhere to go
-                return MOVE_NONE
-        else:  # prioritize running in x-direction
-            if distance_x > 0: # it's right of the sheep, move left if possible
-                if self.valid_move(sheep, sheep_position[0], sheep_position[1]+1, field):
-                    return MOVE_LEFT
-            else:  # it's left of the sheep, move right if possible
-                if self.valid_move(sheep, sheep_position[0], sheep_position[1]-1, field):
-                    return MOVE_RIGHT
-                    # if this is not possible, flee up or down
-            if self.valid_move(sheep, sheep_position[0]+1, sheep_position[1], field):
-                return MOVE_DOWN
-            elif self.valid_move(sheep, sheep_position[0]-1, sheep_position[1], field):
-                return MOVE_UP
-            else:  # nowhere to go
-                return MOVE_NONE
+        # go to tile which is accessible and has longest path to wolf
+        valid_sheep_moves = self.get_valid_moves(figure, sheep_position, field)
+        farthest_away = max(valid_sheep_moves, key=lambda x: self.get_distance_heuristic(x, wolf_position))
+        return self.determine_move_direction(farthest_away, field, figure)
 
     def food_present(self, field):
         food_present = False
@@ -127,14 +99,17 @@ class IntrepidIbex():
         4. repeat on all where real distance is bigger than heuristic
         """
 
-        possible_goals = self.get_possible_sheep_goals(player_number, field)
-        best_heuristic_goal = possible_goals[0]
+        def weighted_sort(distance, worth):
+            # TODO implement weight
+            return distance * 2 / worth
 
-        # reverse_path, f_score = self.a_star_wiki((best_heuristic_goal[0], best_heuristic_goal[1]), figure, field)
-        i = 1
+        possible_goals = sorted(self.get_possible_sheep_goals(player_number, field),
+                                key=lambda x: weighted_sort(x[2], x[3]))
+
+        i = 0
         for goal in possible_goals:
-            reverse_path, f_score = self.a_star_wiki((goal[0], goal[1]), figure, field)
-            if not possible_goals[i] or f_score <= possible_goals[i][2]:
+            reverse_path, true_distance = self.a_star_pathfinding((goal[0], goal[1]), figure, field)
+            if len(possible_goals) == i+1 or weighted_sort(true_distance, goal[3]) <= weighted_sort(possible_goals[i + 1][2], possible_goals[i + 1][3]):
                 break
             i += 1
         return self.determine_move_direction(reverse_path[-2], field, figure)
@@ -145,25 +120,100 @@ class IntrepidIbex():
 
         if player_number == 1:
             sheep_position = self.get_player_position(CELL_SHEEP_1, field)
+            enemy_sheep_label = CELL_SHEEP_2
+            enemy_wolf_label = CELL_WOLF_2
+            friendly_wolf_label = CELL_WOLF_2
         else:
             sheep_position = self.get_player_position(CELL_SHEEP_2, field)
+            enemy_sheep_label = CELL_SHEEP_1
+            friendly_wolf_label = CELL_WOLF_1
 
+        weighted_field = [[0 for x in range(len(field[0]))] for y in range(len(field))]
         y_position = 0
         for line in field:
             x_position = 0
             for item in line:
                 # TODO rhabarber mehr gewichten (weil 5 punkte)
+                if item == CELL_GRASS:
+                    weighted_field[y_position][x_position] += 1
+                elif item == CELL_RHUBARB:
+                    weighted_field[y_position][x_position] += 5
+                elif item == enemy_sheep_label:
+                    weighted_field[y_position][x_position] += 7
+                elif item == enemy_wolf_label:
+                    weighted_field[y_position][x_position] += -15
+                elif item == friendly_wolf_label:
+                    weighted_field[y_position][x_position] += 1
+                elif item == CELL_FENCE:
+                    weighted_field[y_position][x_position] += -0.5
+
                 if item == CELL_RHUBARB or item == CELL_GRASS:
                     # TODO evtl. "gewicht" für fence (zählt distanz 2.5/addiere distanz (was ist minimum um fence auszuweichen?)
-                    possible_goals.append((y_position, x_position,
-                                           self.get_distance_heuristic((y_position, x_position), sheep_position)))
+                    possible_goals.append([y_position, x_position,
+                                           self.get_distance_heuristic((y_position, x_position), sheep_position)])
                 x_position += 1
             y_position += 1
+        radius_field = self.calculate_worth_in_radius(weighted_field)
+        for goal in possible_goals:
+            goal.append(radius_field[goal[0]][goal[1]])
+        return possible_goals
 
-        return sorted(possible_goals, key=itemgetter(2))
+    @staticmethod
+    def calculate_worth_in_radius(weighted_field):
+        rows = len(weighted_field)
+        cols = len(weighted_field[0])
+
+        def up(index, range):
+            if index - range * cols >= 0:
+                return index - range * cols
+
+        def down(index, range):
+            if index + range * cols < rows * cols:
+                return index + range * cols
+
+        def left(index, range):
+            if index % cols >= range:
+                return index - range
+
+        def right(index, range):
+            if index % cols < cols - range:
+                return index + range
+
+        def combined(index, funct1, funct2, range1, range2):
+            if funct1(index, range1) is not None and funct2(index, range2) is not None:
+                return funct1(index, range1) + funct2(index, range2) - index
+
+        flat_map = [item for sublist in weighted_field for item in sublist]
+        summed_map = [[0 for _ in range(cols)] for _ in range(rows)]
+
+        # set influence for next-door/next-next door neighbor etc. if equal weight, we have 1/2^n because of
+        # number of neighbors
+        w_n1 = 0.4  # 0.5
+        w_n2 = 0.18  # 0.25
+        w_n3 = 0.075  # 0.125
+        for i in range(rows * cols):
+            neighbors1 = [up(i, 1), down(i, 1), left(i, 1), right(i, 1)]
+            neighbors2 = [up(i, 2), down(i, 2), left(i, 2), right(i, 2),
+                          combined(i, up, left, 1, 1), combined(i, up, right, 1, 1),
+                          combined(i, down, left, 1, 1), combined(i, down, right, 1, 1)]
+            neighbors3 = [up(i, 3), down(i, 3), left(i, 3), right(i, 3),
+                          combined(i, up, left, 1, 2), combined(i, up, right, 1, 2),
+                          combined(i, down, left, 1, 2), combined(i, down, right, 1, 2),
+                          combined(i, up, left, 2, 1), combined(i, up, right, 2, 1),
+                          combined(i, down, left, 2, 1), combined(i, down, right, 2, 1)
+                          ]
+            neighbors1_sum = sum([flat_map[j] for j in neighbors1 if j is not None])
+            neighbors2_sum = sum([flat_map[j] for j in neighbors2 if j is not None])
+            neighbors3_sum = sum([flat_map[j] for j in neighbors3 if j is not None])
+
+            c = flat_map[i] + w_n1 * neighbors1_sum + w_n2 * neighbors2_sum + w_n3 * neighbors3_sum
+
+            summed_map[math.floor(i / cols)][i % cols] = c
+        return summed_map
 
     # defs for wolf
     def move_wolf(self, player_number, field):
+        return MOVE_NONE
         if player_number == 1:
             sheep_position = self.get_player_position(CELL_SHEEP_2, field)
             return self.determine_wolf_action(sheep_position, field, CELL_WOLF_1)
@@ -174,11 +224,11 @@ class IntrepidIbex():
         return MOVE_NONE
 
     def determine_wolf_action(self, closest_goal, field, figure):
-        reverse_path, f_score = self.a_star_wiki(closest_goal, figure, field)
+        reverse_path, f_score = self.a_star_pathfinding(closest_goal, figure, field)
         return self.determine_move_direction(reverse_path[-2], field, figure)
 
     # neutral defs
-    def a_star_wiki(self, goal, figure, field, cost_function=lambda x, y: 1):
+    def a_star_pathfinding(self, goal, figure, field, cost_function=lambda x, y: 1):
         start = self.get_player_position(figure, field)
         closed_set = set()
         open_set = {start}
