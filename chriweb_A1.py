@@ -51,6 +51,7 @@ class IntrepidIbex():
             # print('gather food move')
             return self.gather_move_sheep(field, figure, player_number)
         else:
+            # TODO gegnerisches schaf einkesseln
             return MOVE_NONE
 
     def wolf_close(self, player_number, field):
@@ -84,6 +85,7 @@ class IntrepidIbex():
             move_heuristics.append((move, self.get_distance_heuristic(move, wolf_position)))
         max_heuristic = max(move_heuristics, key=itemgetter(1))
         # if multiple flee options are equally far away, take the one closer to food in this direction
+        # TODO where to flee if no food? - most degrees of freedom
         if self.food_present(field) and len(max_heuristic) > 1:
             best_options = [x for x in move_heuristics if x[1] == max_heuristic[1]]
             best_goal = min(self.get_possible_sheep_goals(player_number, field),
@@ -135,33 +137,32 @@ class IntrepidIbex():
             sheep_position = self.get_player_position(CELL_SHEEP_1, field)
             enemy_sheep_label = CELL_SHEEP_2
             enemy_wolf_label = CELL_WOLF_2
-            friendly_wolf_label = CELL_WOLF_2
+            friendly_wolf_label = CELL_WOLF_1
         else:
             sheep_position = self.get_player_position(CELL_SHEEP_2, field)
             enemy_sheep_label = CELL_SHEEP_1
-            friendly_wolf_label = CELL_WOLF_1
+            enemy_wolf_label = CELL_WOLF_1
+            friendly_wolf_label = CELL_WOLF_2
 
         weighted_field = [[0 for x in range(len(field[0]))] for y in range(len(field))]
         y_position = 0
         for line in field:
             x_position = 0
             for item in line:
-                # TODO rhabarber mehr gewichten (weil 5 punkte)
                 if item == CELL_GRASS:
                     weighted_field[y_position][x_position] += 1
                 elif item == CELL_RHUBARB:
-                    weighted_field[y_position][x_position] += 5
-                elif item == enemy_sheep_label:
                     weighted_field[y_position][x_position] += 7
+                elif item == enemy_sheep_label:
+                    weighted_field[y_position][x_position] += 5
                 elif item == enemy_wolf_label:
                     weighted_field[y_position][x_position] += -10
                 elif item == friendly_wolf_label:
                     weighted_field[y_position][x_position] += 1
                 elif item == CELL_FENCE:
-                    weighted_field[y_position][x_position] += -0.5
+                    weighted_field[y_position][x_position] += -0.2
 
                 if item == CELL_RHUBARB or item == CELL_GRASS:
-                    # TODO evtl. "gewicht" für fence (zählt distanz 2.5/addiere distanz (was ist minimum um fence auszuweichen?)
                     possible_goals.append([y_position, x_position,
                                            self.get_distance_heuristic((y_position, x_position), sheep_position)])
                 x_position += 1
@@ -222,10 +223,24 @@ class IntrepidIbex():
             c = flat_map[i] + w_n1 * neighbors1_sum + w_n2 * neighbors2_sum + w_n3 * neighbors3_sum
 
             summed_map[math.floor(i / cols)][i % cols] = c
-        return summed_map
+
+        flat_summed_map = [item for sublist in summed_map for item in sublist]
+        min_sum = min(flat_summed_map)
+        max_sum = max(flat_summed_map)
+        span = max_sum - min_sum
+        norm_summed_map = []
+        for row in summed_map:
+            norm_summed_map.append([(item - min_sum) / span for item in row])
+        return norm_summed_map
+
+    def min_max(self,min_val,max_val):
+        span = max_val - min_val
+
 
     # defs for wolf
     def move_wolf(self, player_number, field):
+        # TODO dorthin gehen, wo gegenerisches schaf hingehen will
+        # TODO vermeiden, auf gras zu stehen wenn eigenes schaf näher als gegnerisches
         if player_number == 1:
             sheep_position = self.get_player_position(CELL_SHEEP_2, field)
             return self.determine_wolf_action(sheep_position, field, CELL_WOLF_1)
