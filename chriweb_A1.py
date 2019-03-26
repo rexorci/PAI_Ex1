@@ -85,15 +85,20 @@ class IntrepidIbex():
             move_heuristics.append((move, self.get_distance_heuristic(move, wolf_position)))
         max_heuristic = max(move_heuristics, key=itemgetter(1))
         # if multiple flee options are equally far away, take the one closer to food in this direction
-        # TODO where to flee if no food? - most degrees of freedom
         if self.food_present(field) and len(max_heuristic) > 1:
             best_options = [x for x in move_heuristics if x[1] == max_heuristic[1]]
             best_goal = min(self.get_possible_sheep_goals(player_number, field),
                             key=lambda x: self.weighted_sort(x[2], x[3]))
-            target_coord = min(best_options, key=lambda x: self.get_distance_heuristic(x[0], (best_goal[0], best_goal[1])))
+            target_coord = min(best_options,
+                               key=lambda x: self.get_distance_heuristic(x[0], (best_goal[0], best_goal[1])))
         else:
-            target_coord = max(valid_sheep_moves, key=lambda x: self.get_distance_heuristic(x, wolf_position))
-        return self.determine_move_direction(target_coord[0], field, figure)
+            needed_wolf_moves = [(x[0], x[1], self.get_distance_heuristic(x, wolf_position)) for x in valid_sheep_moves]
+            max_steps = max(needed_wolf_moves, key=itemgetter(2))
+            best_options_no_food = [x for x in needed_wolf_moves if x[2] == max_steps[2]]
+            # go where most degrees of freedom
+            target_coord = max(best_options_no_food,
+                               key=lambda x: len(self.get_valid_moves(figure, (x[0], x[1]), field)))
+        return self.determine_move_direction(target_coord, field, figure)
 
     def food_present(self, field):
         food_present = False
@@ -233,9 +238,8 @@ class IntrepidIbex():
             norm_summed_map.append([(item - min_sum) / span for item in row])
         return norm_summed_map
 
-    def min_max(self,min_val,max_val):
+    def min_max(self, min_val, max_val):
         span = max_val - min_val
-
 
     # defs for wolf
     def move_wolf(self, player_number, field):
@@ -374,3 +378,7 @@ class IntrepidIbex():
                 return False
 
         return True
+
+    def degrees_of_freedom(self, coords):
+
+        pass
