@@ -91,6 +91,7 @@ class IntrepidIbex():
                             key=lambda x: self.weighted_sort(x[2], x[3]))
             target_coord = min(best_options,
                                key=lambda x: self.get_distance_heuristic(x[0], (best_goal[0], best_goal[1])))
+            return self.determine_move_direction(target_coord[0], field, figure)
         else:
             needed_wolf_moves = [(x[0], x[1], self.get_distance_heuristic(x, wolf_position)) for x in valid_sheep_moves]
             max_steps = max(needed_wolf_moves, key=itemgetter(2))
@@ -98,7 +99,7 @@ class IntrepidIbex():
             # go where most degrees of freedom
             target_coord = max(best_options_no_food,
                                key=lambda x: len(self.get_valid_moves(figure, (x[0], x[1]), field)))
-        return self.determine_move_direction(target_coord, field, figure)
+            return self.determine_move_direction((target_coord[0], target_coord[1]), field, figure)
 
     def food_present(self, field):
         food_present = False
