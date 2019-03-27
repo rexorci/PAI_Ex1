@@ -1,8 +1,8 @@
 #!/bin/bash
-echo "Start Virtual Environment"
+echo "Start Tournament"
 source venv/bin/activate
 
-n_maps=2
+n_maps=100
 
 ts=$(date "+%Y%m%d%H%M%S")
 log_name=$(echo logs/tournament_result_$ts.log)
@@ -13,19 +13,31 @@ script2=pduegg_A1
 player1=IntrepidIbex
 player2=AwesomeAgent
 
-
-for i in $(seq 1 $n_maps)
+batch_size=8
+(
+for i in $(seq -w 001 $n_maps)
 do
-    python map_generator.py -n "tournament_$i";
+   ((c=c%batch_size)); ((c++==0)) && wait
+   python map_generator.py -n "tournament_$i" &
 done
+)
 
-for i in $(seq 1 $n_maps)
+#for i in $(seq -w 001 $n_maps)
+#do
+#    python map_generator.py -n "tournament_$i";
+#done
+
+(
+for i in $(seq -w 001 $n_maps)
 do
+    ((c=c%batch_size)); ((c++==0)) && wait
     python kingsheep_tournament.py resources/random_maps/tournament_$i.map -p1m $script1 -p1n $player1 -p2m $script2 -p2n $player2 >> "$log_name" &
     python kingsheep_tournament.py resources/random_maps/tournament_$i.map -p1m $script2 -p1n $player2 -p2m $script1 -p2n $player1 >> "$log_name_rev" &
 done
-wait
+)
+
 
 
 deactivate
 
+echo "End Tournament"
