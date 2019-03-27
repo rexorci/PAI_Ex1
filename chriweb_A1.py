@@ -84,6 +84,9 @@ class IntrepidIbex():
         # go to tile which is accessible and has longest path to wolf
         valid_sheep_moves = self.get_valid_moves(figure, sheep_position, field)
 
+        # do nothing is also valid!
+        valid_sheep_moves.append(sheep_position)
+
         move_heuristics = []
         for move in valid_sheep_moves:
             move_heuristics.append((move, self.manhattan_distance(move, wolf_position)))
