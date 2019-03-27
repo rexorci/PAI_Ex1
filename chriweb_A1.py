@@ -62,7 +62,7 @@ class IntrepidIbex():
             sheep_position = self.get_player_position(CELL_SHEEP_2, field)
             wolf_position = self.get_player_position(CELL_WOLF_1, field)
 
-        if self.get_distance_heuristic(sheep_position, wolf_position) <= 3:
+        if self.manhattan_distance(sheep_position, wolf_position) <= 3:
             return True
         # if (abs(sheep_position[0] - wolf_position[0]) <= 2 and abs(sheep_position[1] - wolf_position[1]) <= 2):
         #     # print('wolf is close')
@@ -82,7 +82,7 @@ class IntrepidIbex():
 
         move_heuristics = []
         for move in valid_sheep_moves:
-            move_heuristics.append((move, self.get_distance_heuristic(move, wolf_position)))
+            move_heuristics.append((move, self.manhattan_distance(move, wolf_position)))
         max_heuristic = max(move_heuristics, key=itemgetter(1))
         # if multiple flee options are equally far away, take the one closer to food in this direction
         if self.food_present(field) and len(max_heuristic) > 1:
@@ -90,10 +90,10 @@ class IntrepidIbex():
             best_goal = min(self.get_possible_sheep_goals(player_number, field),
                             key=lambda x: self.weighted_sort(x[2], x[3]))
             target_coord = min(best_options,
-                               key=lambda x: self.get_distance_heuristic(x[0], (best_goal[0], best_goal[1])))
+                               key=lambda x: self.manhattan_distance(x[0], (best_goal[0], best_goal[1])))
             return self.determine_move_direction(target_coord[0], field, figure)
         else:
-            needed_wolf_moves = [(x[0], x[1], self.get_distance_heuristic(x, wolf_position)) for x in valid_sheep_moves]
+            needed_wolf_moves = [(x[0], x[1], self.manhattan_distance(x, wolf_position)) for x in valid_sheep_moves]
             max_steps = max(needed_wolf_moves, key=itemgetter(2))
             best_options_no_food = [x for x in needed_wolf_moves if x[2] == max_steps[2]]
             # go where most degrees of freedom
@@ -170,7 +170,7 @@ class IntrepidIbex():
 
                 if item == CELL_RHUBARB or item == CELL_GRASS:
                     possible_goals.append([y_position, x_position,
-                                           self.get_distance_heuristic((y_position, x_position), sheep_position)])
+                                           self.manhattan_distance((y_position, x_position), sheep_position)])
                 x_position += 1
             y_position += 1
         radius_field = self.calculate_worth_in_radius(weighted_field)
@@ -245,7 +245,6 @@ class IntrepidIbex():
     # defs for wolf
     def move_wolf(self, player_number, field):
         # TODO dorthin gehen, wo gegenerisches schaf hingehen will
-        # TODO vermeiden, auf gras zu stehen wenn eigenes schaf näher als gegnerisches
         if player_number == 1:
             sheep_position = self.get_player_position(CELL_SHEEP_2, field)
             return self.determine_wolf_action(sheep_position, field, CELL_WOLF_1)
@@ -253,14 +252,12 @@ class IntrepidIbex():
             sheep_position = self.get_player_position(CELL_SHEEP_1, field)
             return self.determine_wolf_action(sheep_position, field, CELL_WOLF_2)
 
-        return MOVE_NONE
-
     def determine_wolf_action(self, closest_goal, field, figure):
         reverse_path, f_score = self.a_star_pathfinding(closest_goal, figure, field)
         return self.determine_move_direction(reverse_path[-2], field, figure)
 
     # neutral defs
-    def a_star_pathfinding(self, goal, figure, field, cost_function=lambda x, y: 1):
+    def a_star_pathfinding(self, goal, figure, field):
         start = self.get_player_position(figure, field)
         closed_set = set()
         open_set = {start}
@@ -270,7 +267,7 @@ class IntrepidIbex():
         g_score[start] = 0
 
         f_score = defaultdict(lambda x: 1000)
-        f_score[start] = self.get_distance_heuristic(start, goal)
+        f_score[start] = self.manhattan_distance(start, goal)
 
         while open_set:
             _, current_position = min(((f_score[pos], pos) for pos in open_set), key=itemgetter(0))
@@ -286,7 +283,7 @@ class IntrepidIbex():
                 if neighbor in closed_set:
                     continue
 
-                tentative_g_score = g_score[current_position] + cost_function(field, neighbor)
+                tentative_g_score = g_score[current_position] + self.cost_function_astar(figure, field, neighbor)
 
                 if neighbor not in open_set:
                     open_set.add(neighbor)
@@ -295,7 +292,51 @@ class IntrepidIbex():
 
                 came_from[neighbor] = current_position
                 g_score[neighbor] = tentative_g_score
-                f_score[neighbor] = g_score[neighbor] + self.get_distance_heuristic(neighbor, goal)
+                f_score[neighbor] = g_score[neighbor] + self.manhattan_distance(neighbor, goal)
+
+    def cost_function_astar(self, figure, field, neighbor):
+
+        field_item = field[neighbor[0]][neighbor[1]]
+
+        if figure == CELL_WOLF_1:
+            return self.wolf_cost_funct(CELL_SHEEP_1,CELL_SHEEP_2,CELL_WOLF_1,field_item,field)
+        elif figure == CELL_WOLF_2:
+            return self.wolf_cost_funct(CELL_SHEEP_2,CELL_SHEEP_1,CELL_WOLF_2,field_item,field)
+        elif figure == CELL_SHEEP_1 or figure == CELL_SHEEP_2:
+            if field_item == CELL_GRASS:
+                return 0.9
+            elif field_item == CELL_RHUBARB:
+                return 0.7
+            else:
+                return 1
+        else:
+            return 1
+
+    def wolf_cost_funct(self,my_sheep, enemy_sheep, my_wolf, field_item, field):
+        # wolf should not step on food if friendly sheep is close
+        # wolf should step on food if enemy sheep is close
+        my_sheep_pos = self.get_player_position(my_sheep, field)
+        enemy_sheep_pos = self.get_player_position(enemy_sheep, field)
+        my_pos = self.get_player_position(my_wolf, field)
+
+        dist_to_mine = self.manhattan_distance(my_pos, my_sheep_pos)
+        dist_to_enemy = self.manhattan_distance(my_pos, enemy_sheep_pos)
+        if dist_to_mine < dist_to_enemy:
+            if field_item == CELL_GRASS:
+                return 1.1
+            elif field_item == CELL_RHUBARB:
+                return 1.3
+            else:
+                return 1
+        elif dist_to_mine > dist_to_enemy:
+            if field_item == CELL_GRASS:
+                return 0.9
+            elif field_item == CELL_RHUBARB:
+                return 0.7
+            else:
+                return 1
+        else:
+            return 1
 
     def determine_move_direction(self, coord, field, figure):
         figure_position = self.get_player_position(figure, field)
@@ -335,7 +376,7 @@ class IntrepidIbex():
         return reverse_path
 
     @staticmethod
-    def get_distance_heuristic(origin, goal):
+    def manhattan_distance(origin, goal):
         return abs(origin[0] - goal[0]) + abs(origin[1] - goal[1])
 
     @staticmethod
