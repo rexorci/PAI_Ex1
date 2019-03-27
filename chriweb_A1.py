@@ -26,6 +26,8 @@ def get_class_name():
     return 'IntrepidIbex'
 
 
+# TODO think about measurement to evaluate how good a game was (not just win/lose)
+
 class IntrepidIbex():
     """Example class for a Kingsheep player"""
 
@@ -39,19 +41,24 @@ class IntrepidIbex():
 
     # defs for sheep
     def move_sheep(self, player_number, field):
-        if player_number == 1:
-            figure = CELL_SHEEP_1
-        else:
-            figure = CELL_SHEEP_2
+        try:
+            if player_number == 1:
+                figure = CELL_SHEEP_1
+            else:
+                figure = CELL_SHEEP_2
 
-        if self.wolf_close(player_number, field):
-            # print('wolf close move')
-            return self.run_from_wolf(player_number, field, figure)
-        elif self.food_present(field):
-            # print('gather food move')
-            return self.gather_move_sheep(field, figure, player_number)
-        else:
-            # TODO gegnerisches schaf einkesseln
+            if self.wolf_close(player_number, field):
+                return self.run_from_wolf(player_number, field, figure)
+            elif self.food_present(field):
+                gather_move= self.gather_move_sheep(field, figure, player_number)
+                if gather_move is None:
+                    # Food is present, but not reachable
+                    return self.hunt_enemy_sheep(field, player_number)
+                else:
+                    return gather_move
+            else:
+                return self.hunt_enemy_sheep(field, player_number)
+        except:
             return MOVE_NONE
 
     def wolf_close(self, player_number, field):
@@ -62,11 +69,8 @@ class IntrepidIbex():
             sheep_position = self.get_player_position(CELL_SHEEP_2, field)
             wolf_position = self.get_player_position(CELL_WOLF_1, field)
 
-        if self.manhattan_distance(sheep_position, wolf_position) <= 3:
+        if self.manhattan_distance(sheep_position, wolf_position) <= 2:
             return True
-        # if (abs(sheep_position[0] - wolf_position[0]) <= 2 and abs(sheep_position[1] - wolf_position[1]) <= 2):
-        #     # print('wolf is close')
-        #     return True
         return False
 
     def run_from_wolf(self, player_number, field, figure):
@@ -101,7 +105,8 @@ class IntrepidIbex():
                                key=lambda x: len(self.get_valid_moves(figure, (x[0], x[1]), field)))
             return self.determine_move_direction((target_coord[0], target_coord[1]), field, figure)
 
-    def food_present(self, field):
+    @staticmethod
+    def food_present(field):
         food_present = False
 
         for line in field:
@@ -113,7 +118,7 @@ class IntrepidIbex():
 
     @staticmethod
     def weighted_sort(distance, worth):
-        return distance * 2 / worth
+        return distance * 1.8 / worth
 
     def gather_move_sheep(self, field, figure, player_number):
         """
@@ -127,13 +132,25 @@ class IntrepidIbex():
                                 key=lambda x: self.weighted_sort(x[2], x[3]))
 
         i = 0
+        possible_path = []
         for goal in possible_goals:
             reverse_path, true_distance = self.a_star_pathfinding((goal[0], goal[1]), figure, field)
+            # handle case, if unreachable goal
+            if reverse_path:
+                possible_path = reverse_path
+            else:
+                i += 1
+                continue
+
             if len(possible_goals) == i + 1 or self.weighted_sort(true_distance, goal[3]) <= self.weighted_sort(
                     possible_goals[i + 1][2], possible_goals[i + 1][3]):
                 break
             i += 1
-        return self.determine_move_direction(reverse_path[-2], field, figure)
+
+        if possible_path:
+            return self.determine_move_direction(possible_path[-2], field, figure)
+        else:
+            return None
 
     def get_possible_sheep_goals(self, player_number, field):
         # contains y_pos, x_pos, heuristic
@@ -158,13 +175,13 @@ class IntrepidIbex():
                 if item == CELL_GRASS:
                     weighted_field[y_position][x_position] += 1
                 elif item == CELL_RHUBARB:
-                    weighted_field[y_position][x_position] += 7
+                    weighted_field[y_position][x_position] += 10
                 elif item == enemy_sheep_label:
-                    weighted_field[y_position][x_position] += 5
+                    weighted_field[y_position][x_position] += 3
                 elif item == enemy_wolf_label:
-                    weighted_field[y_position][x_position] += -10
+                    weighted_field[y_position][x_position] += -8
                 elif item == friendly_wolf_label:
-                    weighted_field[y_position][x_position] += 1
+                    weighted_field[y_position][x_position] += 0
                 elif item == CELL_FENCE:
                     weighted_field[y_position][x_position] += -0.2
 
@@ -239,18 +256,56 @@ class IntrepidIbex():
             norm_summed_map.append([(item - min_sum) / span for item in row])
         return norm_summed_map
 
-    def min_max(self, min_val, max_val):
-        span = max_val - min_val
+    def hunt_enemy_sheep(self, field, player_number):
+        # go to the cell where the enemy sheep has the most degrees of freedom
+        # don't go to fields with distance = 1 to own wolf (enemy sheep will never go there)
+        if player_number == 1:
+            my_sheep_pos = self.get_player_position(CELL_SHEEP_1, field)
+            my_wolf_pos = self.get_player_position(CELL_WOLF_1, field)
+            enemy_sheep_pos = self.get_player_position(CELL_SHEEP_2, field)
+            my_sheep_figure = CELL_SHEEP_1
+            enemy_sheep_figure = CELL_SHEEP_2
+        else:
+            my_sheep_pos = self.get_player_position(CELL_SHEEP_2, field)
+            my_wolf_pos = self.get_player_position(CELL_WOLF_2, field)
+            enemy_sheep_pos = self.get_player_position(CELL_SHEEP_1, field)
+            my_sheep_figure = CELL_SHEEP_2
+            enemy_sheep_figure = CELL_SHEEP_1
+
+        # assumption: sheep flees where most degrees of freedom
+        valid_enemy_sheep_moves = self.get_valid_moves(enemy_sheep_figure, enemy_sheep_pos, field)
+        moves_dof = [(move, len(self.get_valid_moves(enemy_sheep_figure, move, field))) for move in
+                     valid_enemy_sheep_moves]
+        max_dof = max(moves_dof, key=itemgetter(1))
+        best_options = [x for x in moves_dof if x[1] == max_dof[1]]
+        if len(best_options) > 1:
+            # more than one option with same number of degrees of freedom. choose the one farthest away from wolf
+            needed_wolf_moves = [(x[0], self.manhattan_distance(x[0], my_wolf_pos)) for x in best_options]
+            best_target = max(needed_wolf_moves, key=itemgetter(1))
+        else:
+            best_target = best_options[0]
+
+        # check if it is better to stay if I'm already next to enemy sheep
+        if self.manhattan_distance(my_sheep_pos, enemy_sheep_pos) == 1:
+            # minus 1, because my sheep will still block 1 for him
+            dof_if_move = len(self.get_valid_moves(enemy_sheep_figure, my_sheep_pos, field)) - 1
+            if dof_if_move >= max_dof[1]:
+                return MOVE_NONE
+
+        reverse_path, f_score = self.a_star_pathfinding(best_target[0], my_sheep_figure, field)
+        return self.determine_move_direction(reverse_path[-2], field, my_sheep_figure)
 
     # defs for wolf
     def move_wolf(self, player_number, field):
-        # TODO dorthin gehen, wo gegenerisches schaf hingehen will
-        if player_number == 1:
-            sheep_position = self.get_player_position(CELL_SHEEP_2, field)
-            return self.determine_wolf_action(sheep_position, field, CELL_WOLF_1)
-        else:
-            sheep_position = self.get_player_position(CELL_SHEEP_1, field)
-            return self.determine_wolf_action(sheep_position, field, CELL_WOLF_2)
+        try:
+            if player_number == 1:
+                sheep_position = self.get_player_position(CELL_SHEEP_2, field)
+                return self.determine_wolf_action(sheep_position, field, CELL_WOLF_1)
+            else:
+                sheep_position = self.get_player_position(CELL_SHEEP_1, field)
+                return self.determine_wolf_action(sheep_position, field, CELL_WOLF_2)
+        except:
+            return MOVE_NONE
 
     def determine_wolf_action(self, closest_goal, field, figure):
         reverse_path, f_score = self.a_star_pathfinding(closest_goal, figure, field)
@@ -294,14 +349,14 @@ class IntrepidIbex():
                 g_score[neighbor] = tentative_g_score
                 f_score[neighbor] = g_score[neighbor] + self.manhattan_distance(neighbor, goal)
 
+        return None, None
     def cost_function_astar(self, figure, field, neighbor):
-
         field_item = field[neighbor[0]][neighbor[1]]
 
         if figure == CELL_WOLF_1:
-            return self.wolf_cost_funct(CELL_SHEEP_1,CELL_SHEEP_2,CELL_WOLF_1,field_item,field)
+            return self.wolf_cost_funct(CELL_SHEEP_1, CELL_SHEEP_2, CELL_WOLF_1, field_item, field)
         elif figure == CELL_WOLF_2:
-            return self.wolf_cost_funct(CELL_SHEEP_2,CELL_SHEEP_1,CELL_WOLF_2,field_item,field)
+            return self.wolf_cost_funct(CELL_SHEEP_2, CELL_SHEEP_1, CELL_WOLF_2, field_item, field)
         elif figure == CELL_SHEEP_1 or figure == CELL_SHEEP_2:
             if field_item == CELL_GRASS:
                 return 0.9
@@ -312,7 +367,7 @@ class IntrepidIbex():
         else:
             return 1
 
-    def wolf_cost_funct(self,my_sheep, enemy_sheep, my_wolf, field_item, field):
+    def wolf_cost_funct(self, my_sheep, enemy_sheep, my_wolf, field_item, field):
         # wolf should not step on food if friendly sheep is close
         # wolf should step on food if enemy sheep is close
         my_sheep_pos = self.get_player_position(my_sheep, field)
@@ -321,6 +376,7 @@ class IntrepidIbex():
 
         dist_to_mine = self.manhattan_distance(my_pos, my_sheep_pos)
         dist_to_enemy = self.manhattan_distance(my_pos, enemy_sheep_pos)
+
         if dist_to_mine < dist_to_enemy:
             if field_item == CELL_GRASS:
                 return 1.1
@@ -412,15 +468,13 @@ class IntrepidIbex():
         # Sheep can not step on squares occupied by the opposite sheep.
         if figure == CELL_SHEEP_1:
             if field[x_new][y_new] == CELL_SHEEP_2 or \
-                    field[x_new][y_new] == CELL_WOLF_1:
+                    field[x_new][y_new] == CELL_WOLF_1 or \
+                    field[x_new][y_new] == CELL_WOLF_2:
                 return False
         elif figure == CELL_SHEEP_2:
             if field[x_new][y_new] == CELL_SHEEP_1 or \
-                    field[x_new][y_new] == CELL_WOLF_2:
+                    field[x_new][y_new] == CELL_WOLF_2 or \
+                    field[x_new][y_new] == CELL_WOLF_1:
                 return False
 
         return True
-
-    def degrees_of_freedom(self, coords):
-
-        pass
