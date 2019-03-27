@@ -32,7 +32,7 @@ def timed(func):
         start = time.time()
         result = func(*args, **kwargs)
         end = time.time()
-        print("[{}] computation took {}s".format(func.__qualname__, end - start))
+        # print("[{}] computation took {}s".format(func.__qualname__, end - start))
         return result
     return timed_wrapper
 
@@ -274,7 +274,7 @@ def route_towards_food(sheep, foods, field):
     distance, predecessor = dijkstra(field, field.get_first_position(sheep), get_sheep_cost_function(enemy_sheep, enemy_wolf))
     distance_enemy, predecessor_enemy = dijkstra(field, field.get_first_position(enemy_sheep), get_sheep_cost_function(sheep, wolf))
 
-    print(distance)
+    # print(distance)
     random.shuffle(foods)
     closest_distance = inf
     goal = None
