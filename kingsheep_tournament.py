@@ -416,7 +416,12 @@ def main():
     else:
         map_name = "resources/test.map"
 
-    kingsheep_play(player1class, player2class, map_name)
+    try:
+        kingsheep_play(player1class, player2class, map_name)
+    except Exception as ex:
+        print("Exception, Map: " + map_name + " P1:" + str(player1class) + ",P2:" + str(player2class))
+        print(ex)
+        raise ex
 
 
 if __name__ == "__main__":
