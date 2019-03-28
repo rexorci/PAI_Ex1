@@ -419,9 +419,7 @@ def main():
     try:
         kingsheep_play(player1class, player2class, map_name)
     except Exception as ex:
-        print("Exception, Map: " + map_name + " P1:" + str(player1class) + ",P2:" + str(player2class))
-        print(ex)
-        raise ex
+        print('' + map_name + ',0,0,Exception: [' + str(ex) + ']')
 
 
 if __name__ == "__main__":
