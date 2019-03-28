@@ -3,3 +3,4 @@ venv
 .idea
 logs/
 resources/random_maps/
+tournament/
