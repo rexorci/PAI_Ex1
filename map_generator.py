@@ -70,7 +70,7 @@ def generate_random_field(name, entropy, cell_type_counts):
         :param name: name of the file
         :param map: generated map
         """
-        with open(os.path.join('resources', 'random_maps', f'{name}.map'), 'w') as file:
+        with open(os.path.join(f'{name}.map'), 'w') as file:
             for row in map:
                 for cell in row:
                     file.write(cell)
@@ -94,8 +94,7 @@ parser.add_argument("-e", "--entropy", help="name of random map")
 parser.add_argument("-ctc", "--cell_type_counts", help="name of random map")
 args = parser.parse_args()
 
-name = "random_map"
-
+name = "resources/random_maps/random_map"
 
 if args.name:
     name = args.name
