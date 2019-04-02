@@ -50,7 +50,7 @@ class IntrepidIbex():
             if self.wolf_close(player_number, field):
                 return self.run_from_wolf(player_number, field, figure)
             elif self.food_present(field):
-                gather_move= self.gather_move_sheep(field, figure, player_number)
+                gather_move = self.gather_move_sheep(field, figure, player_number)
                 if gather_move is None:
                     # Food is present, but not reachable
                     return self.hunt_enemy_sheep(field, player_number)
@@ -134,6 +134,22 @@ class IntrepidIbex():
         possible_goals = sorted(self.get_possible_sheep_goals(player_number, field),
                                 key=lambda x: self.weighted_sort(x[2], x[3]))
 
+        # remove possible_goal if path is a dead end and enemy wolf is close
+        # TODO get points of field where 3 fences/borders
+        #  get all neighbors of this field with 2 fences (recursive)
+        #  if wolf distance <=4, these fields are off limits
+        trap_fields = self.get_3_border_fields(field)
+
+        if player_number == 1:
+            enemy_wolf_pos = self.get_player_position(CELL_WOLF_2, field)
+        else:
+            enemy_wolf_pos = self.get_player_position(CELL_WOLF_1, field)
+
+        for goal in possible_goals:
+            if (goal[0], goal[1]) in trap_fields and self.manhattan_distance(enemy_wolf_pos, goal) <= 4:
+                print('danger' + str(goal[0]) + str(goal[1]))
+                possible_goals.remove(goal)
+
         i = 0
         possible_path = []
         for goal in possible_goals:
@@ -154,6 +170,43 @@ class IntrepidIbex():
             return self.determine_move_direction(possible_path[-2], field, figure)
         else:
             return None
+
+    def get_3_border_fields(self, field):
+        trap_fields = []
+        y_position = 0
+        for line in field:
+            x_position = 0
+            for item in line:
+                bad_neighbors = 0
+                if self.is_fence_or_border(y_position - 1, x_position, field):
+                    bad_neighbors += 1
+                if self.is_fence_or_border(y_position + 1, x_position, field):
+                    bad_neighbors += 1
+                if self.is_fence_or_border(y_position, x_position - 1, field):
+                    bad_neighbors += 1
+                if self.is_fence_or_border(y_position, x_position + 1, field):
+                    bad_neighbors += 1
+
+                if bad_neighbors >= 3:
+                    trap_fields.append((y_position, x_position))
+                x_position += 1
+            y_position += 1
+        return trap_fields
+
+    @staticmethod
+    def is_fence_or_border(row, col, field):
+        if row > FIELD_HEIGHT - 1:
+            return True
+        elif row < 0:
+            return True
+        elif col > FIELD_WIDTH - 1:
+            return True
+        elif col < 0:
+            return True
+        elif field[row][col] == CELL_FENCE:
+            return True
+        else:
+            return False
 
     def get_possible_sheep_goals(self, player_number, field):
         # contains y_pos, x_pos, heuristic
@@ -353,6 +406,7 @@ class IntrepidIbex():
                 f_score[neighbor] = g_score[neighbor] + self.manhattan_distance(neighbor, goal)
 
         return None, None
+
     def cost_function_astar(self, figure, field, neighbor):
         field_item = field[neighbor[0]][neighbor[1]]
 
