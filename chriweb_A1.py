@@ -138,7 +138,7 @@ class IntrepidIbex():
         # TODO get points of field where 3 fences/borders
         #  get all neighbors of this field with 2 fences (recursive)
         #  if wolf distance <=4, these fields are off limits
-        trap_fields = self.get_3_border_fields(field)
+        trap_fields = self.get_trap_fields(field)
 
         if player_number == 1:
             enemy_wolf_pos = self.get_player_position(CELL_WOLF_2, field)
@@ -171,27 +171,40 @@ class IntrepidIbex():
         else:
             return None
 
+    def get_trap_fields(self, field):
+        dead_ends = self.get_3_border_fields(field)
+        # for coord in dead_ends:
+        #     way_out =
+        return dead_ends
+
     def get_3_border_fields(self, field):
         trap_fields = []
         y_position = 0
         for line in field:
             x_position = 0
             for item in line:
+                if item not in [CELL_EMPTY, CELL_GRASS, CELL_RHUBARB]:
+                    x_position += 1
+                    continue
                 bad_neighbors = 0
-                if self.is_fence_or_border(y_position - 1, x_position, field):
-                    bad_neighbors += 1
-                if self.is_fence_or_border(y_position + 1, x_position, field):
-                    bad_neighbors += 1
-                if self.is_fence_or_border(y_position, x_position - 1, field):
-                    bad_neighbors += 1
-                if self.is_fence_or_border(y_position, x_position + 1, field):
-                    bad_neighbors += 1
+                for neighbor in self.get_unfiltered_neighbors((y_position, x_position)):
+                    if self.is_fence_or_border(neighbor[0], neighbor[1], field):
+                        bad_neighbors += 1
 
                 if bad_neighbors >= 3:
                     trap_fields.append((y_position, x_position))
                 x_position += 1
             y_position += 1
         return trap_fields
+
+    @staticmethod
+    def get_unfiltered_neighbors(coord):
+        neighbors = []
+        neighbors.append((coord[0] - 1, coord[1]))
+        neighbors.append((coord[0] + 1, coord[1]))
+        neighbors.append((coord[0], coord[1] - 1))
+        neighbors.append((coord[0], coord[1] + 1))
+        return neighbors
 
     @staticmethod
     def is_fence_or_border(row, col, field):
