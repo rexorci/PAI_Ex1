@@ -3,12 +3,14 @@ echo "Start Tournament"
 source venv/bin/activate
 
 script1=chriweb_A1
-script2=simbach_A1
+script2=greedy_player
+#script2=simbach_A1
 #script2=mlapae_A1
 #script2=iana_player5
 #script2=pduegg_A1
 player1=IntrepidIbex
-player2=TouchMyTralala
+player2=GreedyPlayer
+#player2=TouchMyTralala
 #player2=Bublik
 #player2=Barash
 #player2=AwesomeAgent
