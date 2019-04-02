@@ -3,11 +3,17 @@ echo "Start Tournament"
 source venv/bin/activate
 
 script1=chriweb_A1
-script2=pduegg_A1
+script2=simbach_A1
+#script2=mlapae_A1
+#script2=iana_player5
+#script2=pduegg_A1
 player1=IntrepidIbex
-player2=AwesomeAgent
+player2=TouchMyTralala
+#player2=Bublik
+#player2=Barash
+#player2=AwesomeAgent
 
-n_maps=4
+n_maps=20
 
 ts=$(date "+%Y%m%d%H%M%S")
 
