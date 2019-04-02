@@ -76,12 +76,13 @@ def generate_random_field(name, entropy, cell_type_counts):
                     file.write(cell)
                 file.write('\n')
 
+    place_cells(field, CELL_SHEEP_1, 1, mirror_type=CELL_SHEEP_2)
+    place_cells(field, CELL_WOLF_1, 1, mirror_type=CELL_WOLF_2)
+
     for cell_type, count in cell_type_counts.items():
         place_cells(field, cell_type, count)
         # place_cells(field, cell_type, count)
 
-    place_cells(field, CELL_SHEEP_1, 1,  mirror_type=CELL_SHEEP_2)
-    place_cells(field, CELL_WOLF_1, 1, mirror_type=CELL_WOLF_2)
     # place_cells(field, CELL_SHEEP_1, 1, point_mirror=True, mirror_type=CELL_SHEEP_2)
     # place_cells(field, CELL_WOLF_1, 1, point_mirror=True, mirror_type=CELL_WOLF_2)
 
