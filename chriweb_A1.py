@@ -26,7 +26,6 @@ def get_class_name():
     return 'IntrepidIbex'
 
 
-# TODO think about measurement to evaluate how good a game was (not just win/lose)
 
 class IntrepidIbex():
     """Example class for a Kingsheep player"""
@@ -134,10 +133,9 @@ class IntrepidIbex():
         possible_goals = sorted(self.get_possible_sheep_goals(player_number, field),
                                 key=lambda x: self.weighted_sort(x[2], x[3]))
 
-        # remove possible_goal if path is a dead end and enemy wolf is close
-        # TODO get points of field where 3 fences/borders
-        #  get all neighbors of this field with 2 fences (recursive)
-        #  if wolf distance <=4, these fields are off limits
+        # get points of field where 3 fences/borders
+        # get all neighbors of this field with 2 fences (recursive)
+        # if wolf close,these fields are off limits
         trap_fields = self.get_trap_fields(field)
 
         if player_number == 1:
@@ -146,8 +144,8 @@ class IntrepidIbex():
             enemy_wolf_pos = self.get_player_position(CELL_WOLF_1, field)
 
         for goal in possible_goals:
-            if (goal[0], goal[1]) in trap_fields and self.manhattan_distance(enemy_wolf_pos, goal) <= 4:
-                print('danger' + str(goal[0]) + str(goal[1]))
+            if [el for el in trap_fields if
+                el[0] == (goal[0], goal[1]) and self.manhattan_distance(enemy_wolf_pos, goal) <= el[1] + 1]:
                 possible_goals.remove(goal)
 
         i = 0
@@ -172,13 +170,33 @@ class IntrepidIbex():
             return None
 
     def get_trap_fields(self, field):
-        dead_ends = self.get_3_border_fields(field)
-        # for coord in dead_ends:
-        #     way_out =
-        return dead_ends
-
-    def get_3_border_fields(self, field):
+        dead_ends = self.get_dead_ends(field)
         trap_fields = []
+        for item in dead_ends:
+            tunnel = []
+            tunnel.append(item[0])
+            tunnel.extend(self.is_safe_way_out(item[1], item[0], [], field, 0))
+            i = 0
+            for el in tunnel:
+                trap_fields.append((el, len(tunnel) - i))
+                i += 1
+        return trap_fields
+
+    def is_safe_way_out(self, coord, lag_coord, tunnel_list, field, security_depth):
+        security_depth += 1
+        way_out_options = self.get_not_fence_or_wall_neighbors(coord, field)
+        if security_depth > 50:
+            # should never be reached!
+            return tunnel_list
+        if len(way_out_options) == 2:
+            tunnel_list.append(coord)
+            next_tunnel_tile = next(obj for obj in way_out_options if obj != lag_coord)
+            return self.is_safe_way_out(next_tunnel_tile, coord, tunnel_list, field, security_depth)
+        else:
+            return tunnel_list
+
+    def get_dead_ends(self, field):
+        dead_ends = []
         y_position = 0
         for line in field:
             x_position = 0
@@ -186,25 +204,25 @@ class IntrepidIbex():
                 if item not in [CELL_EMPTY, CELL_GRASS, CELL_RHUBARB]:
                     x_position += 1
                     continue
-                bad_neighbors = 0
-                for neighbor in self.get_unfiltered_neighbors((y_position, x_position)):
-                    if self.is_fence_or_border(neighbor[0], neighbor[1], field):
-                        bad_neighbors += 1
+                good_neighbors = self.get_not_fence_or_wall_neighbors((y_position, x_position), field)
 
-                if bad_neighbors >= 3:
-                    trap_fields.append((y_position, x_position))
+                if len(good_neighbors) == 1:
+                    dead_ends.append(((y_position, x_position), good_neighbors[0]))
                 x_position += 1
             y_position += 1
-        return trap_fields
+        return dead_ends
 
-    @staticmethod
-    def get_unfiltered_neighbors(coord):
-        neighbors = []
-        neighbors.append((coord[0] - 1, coord[1]))
-        neighbors.append((coord[0] + 1, coord[1]))
-        neighbors.append((coord[0], coord[1] - 1))
-        neighbors.append((coord[0], coord[1] + 1))
-        return neighbors
+    def get_not_fence_or_wall_neighbors(self, coord, field):
+        good_neighbors = []
+        if not self.is_fence_or_border(coord[0] - 1, coord[1], field):
+            good_neighbors.append((coord[0] - 1, coord[1]))
+        if not self.is_fence_or_border(coord[0] + 1, coord[1], field):
+            good_neighbors.append((coord[0] + 1, coord[1]))
+        if not self.is_fence_or_border(coord[0], coord[1] - 1, field):
+            good_neighbors.append((coord[0], coord[1] - 1))
+        if not self.is_fence_or_border(coord[0], coord[1] + 1, field):
+            good_neighbors.append((coord[0], coord[1] + 1))
+        return good_neighbors
 
     @staticmethod
     def is_fence_or_border(row, col, field):
